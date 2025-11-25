@@ -1,74 +1,870 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-  <title>Goal Game</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Pass & Catch — Phaser + HTML UI</title>
   <style>
-    html,body{height:100%;margin:0;background:#0b1f2a;overflow:hidden}
-    #game{width:100vw;height:100vh}
-    canvas,body{touch-action:none}
+    html, body { height: 100%; margin: 0; background: #0b1f2a; }
+    #game { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+    * { box-sizing: border-box; }
+    .rc { position: fixed; inset: 0; width: 100%; height: 100%; display: none; z-index: 10; background-color: #0b1f2a; }
+    .abs { position: absolute; }
+    .pn { position: absolute; overflow: hidden; }
+    .fi { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .rw, .sw { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; max-width: calc(100vh * 540 / 960); height: 100%; margin: 0 auto; font-size: 2.25vh; }
+    .gs, .rs { position: absolute; inset: 0; background-size: cover; }
+    .gs span, .rs span { font-family: "Montserrat", sans-serif; font-weight: 700; }
+    .rs { background: #000 url("UI/Win_Back.png") no-repeat center top; }
+    .tb { width: 51%; height: 9%; top: 8%; left: 24%; }
+    .cc { width: 45%; height: 34%; top: 21%; left: 27%; }
+    .rcd { width: 39%; height: 10%; top: 58%; left: 30%; }
+    .rcl, .rml, .rmv, .rca { font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 1em; }
+    .rcl { width: 48%; color: #fff; top: 59%; left: 7%; text-align: left; }
+    .rml { width: 72%; color: rgba(89, 7, 8, 1); top: 10%; left: 6%; text-align: left; }
+    .rmv { width: 23%; color: #fff; top: 10%; left: 76%; text-align: center; }
+    .rca { width: 33%; color: #fff; top: 59%; left: 67%; text-align: center; }
+    .rci { width: 11%; height: 26%; top: 59%; left: 58%; }
+    .cb { width: 40%; height: 9%; top: 78%; left: 29%; }
+    .cbt { width: 95%; color: rgba(208, 40, 49, 1); top: 27%; left: 3%; font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 1.5em; text-align: center; }
+    .lsc { background: #000 url("UI/Loose_Back.png") no-repeat center top; }
+    .lt { width: 51%; height: 9%; top: 7%; left: 25%; }
+    .lg { width: 43%; height: 21%; top: 29%; left: 28%; }
+    .lp { width: 48%; height: 13%; top: 58%; left: 26%; }
+    .lpt { width: 89%; color: #fff; top: 45%; left: 5%; text-align: center; }
+    .lps { width: 95%; color: #fff; top: 70%; left: 3%; text-align: center; }
+    .lml { width: 53%; color: rgba(89, 7, 8, 1); top: 6%; left: 15%; text-align: left; }
+    .lmv { width: 18%; color: #fff; top: 6%; left: 71%; text-align: center; }
+    .lbb { width: 40%; height: 9%; top: 78%; left: 29%; }
+    .lbt { width: 95%; color: rgba(0, 41, 68, 1); top: 25%; left: 3%; font-size: 1.5em; text-align: center; }
+    .lds { background: #000 url("UI/First_List_Back.png") no-repeat center top; }
+    .ldt { width: 51%; height: 9%; top: 7%; left: 25%; }
+    .ldg { width: 80%; height: 52%; top: 25%; left: 2%; }
+    .ldb { width: 61%; height: 3%; top: 82%; left: 22%; overflow: hidden; }
+    .ldf { width: 0%; height: 67%; top: 16%; left: 1%; transition: width 5s linear; }
+    .ldf.fill-full { width: 98%; }
+    .ldtx { width: 42%; color: #fff; top: 86%; left: 31%; font-size: 1.2em; text-align: center; }
   </style>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
 </head>
 <body>
-<div id="game"></div>
-<script>
-class MainScene extends Phaser.Scene{
-  constructor(){super('main')} 
-  init(){
-    this.players=[];this.playerIndex=0;this.passCount=0;this.multiplier=1;this.missChance=.05;this.inFlight=false;this.gameOver=false;this.countdownEvent=null;this.countdownText=null;this.countdownRemaining=0;this.firstPassDone=false;
-  }
-  create(){
-    this.W=540;this.H=960;this.PLAYERS_COUNT=10;this.P_SPACING_MIN=420;this.H_OFFSET=140;this.BALL_R=20;this.PW=64;this.PH=96;this.PASS_MIN=2000;this.PASS_RAND=1000;this.MS_STEP=.07;this.ML_STEP=.20;this.BAR_MAX=10;
-    const btnH=64,btnCY=this.H-70,bottomMargin=this.H-(btnCY+btnH/2),firstCenterY=btnCY-btnH/2-bottomMargin-this.PH/2;
-    const cx=this.W/2,marginX=this.PW/2+10;this.positions=[];let y=firstCenterY;
-    for(let i=0;i<this.PLAYERS_COUNT;i++){const x=i===0?cx:Phaser.Math.Clamp(cx+Phaser.Math.Between(-this.H_OFFSET,this.H_OFFSET),marginX,this.W-marginX);if(i>0)y-=this.P_SPACING_MIN+Phaser.Math.Between(0,this.P_SPACING_MIN);this.positions.push({x,y})}
-    const minY=this.positions.reduce((m,p)=>Math.min(m,p.y),this.positions[0].y);const top=minY-700,bottom=this.H+500,worldH=bottom-top;this.cameras.main.setBounds(0,top,this.W,worldH);this.physics.world.setBounds(0,top,this.W,worldH);
-    this.add.rectangle(this.W/2,(top+bottom)/2,this.W,worldH,0x228B22).setDepth(-10);for(let sy=top;sy<bottom;sy+=160){this.add.rectangle(this.W/2,sy+80,this.W,2,0x1a5e1a).setDepth(-9)}
-    for(let i=0;i<this.PLAYERS_COUNT;i++){const pos=this.positions[i];const b=this.makePlayer(pos.x,pos.y);this.players.push({body:b})}
-    const last=this.players[this.PLAYERS_COUNT-1].body;this.goal=this.add.rectangle(this.W/2,last.y-260,110,26,0x2fd39f).setStrokeStyle(4,0x1aa67a).setDepth(9);this.add.text(this.goal.x,this.goal.y-36,'GOAL',{fontFamily:'monospace',fontSize:18,color:'#7fffd4'}).setOrigin(.5).setDepth(9);
-    const first=this.players[0].body;const leg=this.legPos(first);this.ball=this.add.circle(leg.x,leg.y,this.BALL_R,0xffffff).setDepth(100);this.cameras.main.startFollow(this.ball,true,.22,.22);
-    this.barBG=this.add.rectangle(28,this.H/2,18,760,0x103047).setOrigin(.5).setDepth(50).setScrollFactor(0);this.barFG = this.add.rectangle(28, this.H/2+380, 12, 760, 0x34c3ff).setOrigin(.5,1).setDepth(51).setScrollFactor(0);
-    this.barFG.setScale(1, 0);this.multText=this.add.text(56,24,'x1',{fontFamily:'monospace',fontSize:22,color:'#b9eeff'}).setScrollFactor(0).setDepth(51);this.missText=this.add.text(56,56,'Miss: 5%',{fontFamily:'monospace',fontSize:16,color:'#ffb3b3'}).setScrollFactor(0).setDepth(51);
-    this.ui=this.add.container(0,0).setScrollFactor(0).setDepth(2000);const by=btnCY;this.passBtn=this.mkBtn('START',this.W/2,by,220,64,0x3ddc97,()=>this.startFirstPass());this.catchBtn=this.mkBtn('CATCH!',this.W/2,by,220,64,0xf7b267,()=>this.catch());this.setBtn(this.passBtn,true);this.setBtn(this.catchBtn,false);this.ui.add([this.passBtn,this.catchBtn]);
-    this.overlay=this.add.container(0,0).setScrollFactor(0).setDepth(3000).setVisible(false);const dim=this.add.rectangle(this.W/2,this.H/2,this.W,this.H,0x000,0.5);dim.setInteractive();this.ovTitle=this.add.text(this.W/2,this.H/2-70,'',{fontFamily:'monospace',fontSize:36,color:'#fff'}).setOrigin(.5);this.ovMsg=this.add.text(this.W/2,this.H/2-16,'',{fontFamily:'monospace',fontSize:20,color:'#dff6ff'}).setOrigin(.5);this.restartBtn=this.mkBtn('RESTART',this.W/2,this.H/2+56,220,64,0x49dceb,()=>this.restart());this.overlay.add([dim,this.ovTitle,this.ovMsg,this.restartBtn]);
-    this.hud();
-  }
-  makePlayer(x,y){
-    const skin=0xffd2a6, shirt=0xff3b30, hair=0x111111, part=this.PH/5;
-    const c=this.add.container(x,y).setDepth(10);
-    const seg=(color,start,count)=>{const h=part*count, cy=-this.PH/2+part*(start+count/2); c.add(this.add.rectangle(0,cy,this.PW,h,color).setOrigin(0.5));};
-    seg(hair,0,1);
-    seg(skin,1,1);
-    seg(shirt,2,1);
-    seg(shirt,3,1);
-    seg(skin,4,1);
-    return c;
-  }
-  mkBtn(t,x,y,w,h,c,cb){const b=this.add.container(x,y).setDepth(200).setScrollFactor(0);const bg=this.add.rectangle(0,0,w,h,c).setOrigin(.5);const tx=this.add.text(0,0,t,{fontFamily:'monospace',fontSize:26,color:'#072c2c'}).setOrigin(.5);const z=this.add.zone(0,0,w,h).setOrigin(.5).setScrollFactor(0).setInteractive({useHandCursor:true});z.on('pointerdown',()=>{if(this.gameOver&&b!==this.restartBtn)return;if(this.inFlight&&b!==this.restartBtn)return;cb()});b.add([bg,tx,z]);b.hitZone=z;return b}
-  setBtn(b,a){b.setVisible(a);if(b.hitZone){a?b.hitZone.setInteractive({useHandCursor:true}):b.hitZone.disableInteractive()}}
-  legPos(p){return{x:p.x,y:p.y+this.PH/2-this.BALL_R*.5-2}}
-  getPassT(){return this.PASS_MIN+Phaser.Math.Between(0,this.PASS_RAND)}
-  startFirstPass(){if(this.firstPassDone)return;this.setBtn(this.passBtn,false);this.setBtn(this.catchBtn,true);this.pass()}
-  startCountdown(){if(!this.firstPassDone||this.gameOver)return;this.cancelCountdown();this.countdownRemaining=1;const h=this.players[this.playerIndex].body;this.countdownText=this.add.text(h.x,h.y-this.PH/2-56,String(this.countdownRemaining),{fontFamily:'monospace',fontSize:40,color:'#ffe28b'}).setOrigin(.5).setDepth(200).setAlpha(0);this.countdownEvent=this.time.addEvent({delay:500,callback:()=>{if(this.gameOver||this.inFlight)return;this.cancelCountdown();this.pass()}})}
-  cancelCountdown(){if(this.countdownEvent){this.countdownEvent.remove(false);this.countdownEvent=null}if(this.countdownText){this.countdownText.destroy();this.countdownText=null}}
-  pass(){if(this.playerIndex>=this.PLAYERS_COUNT-1){this.toGoal();return}this.toPlayer(this.playerIndex+1)}
-  arcTo(tx,ty,d,cb){const s=new Phaser.Math.Vector2(this.ball.x,this.ball.y),e=new Phaser.Math.Vector2(tx,ty),m=s.clone().add(e).scale(.5),tr=e.distance(s),arc=Math.max(220,Phaser.Math.Clamp(tr*.35,180,380)),c=new Phaser.Math.Vector2(m.x,m.y-arc),curve=new Phaser.Curves.QuadraticBezier(s,c,e);return this.tweens.addCounter({from:0,to:1,duration:d,ease:'Sine.easeInOut',onUpdate:tw=>{const t=tw.getValue(),p=curve.getPoint(t);this.ball.setPosition(p.x,p.y);const scale=1+.5*Math.sin(Math.PI*t);this.ball.setScale(scale,scale)},onComplete:cb})}
-  toPlayer(i){const miss=Math.random()<this.missChance,t=this.players[i].body;this.inFlight=true;const leg=this.legPos(t),dur=this.getPassT();if(miss){const mx=Phaser.Math.Linear(this.ball.x,leg.x,.6)+Phaser.Math.Between(-80,80),my=leg.y-80;this.arcTo(mx,my,dur,()=>this.fail());this.cameras.main.shake(300,.003)}else{this.arcTo(leg.x,leg.y,dur,()=>{this.playerIndex=i;this.passCount++;this.multiplier+=1;this.missChance+=this.MS_STEP;this.inFlight=false;this.cameras.main.shake(300,.003);this.showMultiplierPop(t.x,t.y-this.PH/2-24);if(!this.firstPassDone)this.firstPassDone=true;this.hud();this.startCountdown()})}}
-  toGoal(){const miss=Math.random()<this.missChance;this.inFlight=true;const dur=this.getPassT();if(miss){const mx=this.goal.x+Phaser.Math.Between(-120,120),my=this.goal.y-140;this.arcTo(mx,my,dur,()=>this.fail());this.cameras.main.shake(300,.003)}else{this.arcTo(this.goal.x,this.goal.y+6,dur,()=>{this.passCount++;this.multiplier+=1;this.missChance+=this.MS_STEP;this.inFlight=false;this.hud();this.startCountdown()})}}
-  showMultiplierPop(x,y){const txt=this.add.text(x,y,'x'+this.multiplier.toFixed(0),{fontFamily:'monospace',fontSize:48,color:'#ffffff',stroke:'#103047',strokeThickness:6}).setOrigin(.5).setDepth(2000);txt.setScale(.1,.1);this.tweens.add({targets:txt,scaleX:1.15,scaleY:1.15,y:y-10,duration:220,ease:'Back.Out'});this.tweens.add({targets:txt,scaleX:1,scaleY:1,delay:220,duration:140,ease:'Sine.easeOut'});this.time.delayedCall(900,()=>txt.destroy())}
-  catch(){if(this.inFlight||this.gameOver)return;this.cancelCountdown();const r=Math.round(100*this.multiplier);this.ovMsg.setText('Multiplier: x'+this.multiplier.toFixed(0)+'\nReward: '+r);this.ovTitle.setText('YOU WIN! ✨');this.overlay.setVisible(true);this.overlay.setAlpha(0);this.tweens.add({targets:this.overlay,alpha:1,duration:250});this.gameOver=true}
-  fail(){this.cancelCountdown();this.inFlight=false;this.gameOver=true;this.tweens.add({targets:this.ball,scaleX:1.5,scaleY:1.5,yoyo:true,repeat:1,duration:160});this.ovMsg.setText('No reward this time.');this.ovTitle.setText('MISSED! ❌');this.overlay.setVisible(true);this.overlay.setAlpha(0);this.tweens.add({targets:this.overlay,alpha:1,duration:250})}
-  hud(){
-    const progress = Phaser.Math.Clamp((this.multiplier - 1) / (this.BAR_MAX - 1), 0, 1);
-    this.barFG.setScale(1, progress);
-    this.multText.setText('x' + this.multiplier.toFixed(0));
-    this.missText.setText('Miss: ' + (this.missChance * 100).toFixed(0) + '%');
-  }
-  restart(){this.cancelCountdown();this.gameOver=false;this.inFlight=false;this.firstPassDone=false;this.playerIndex=0;this.passCount=0;this.multiplier=1;this.missChance=.05;this.overlay.setVisible(false);const f=this.players[0].body,l=this.legPos(f);this.ball.setPosition(l.x,l.y);this.ball.setScale(1,1);this.cameras.main.startFollow(this.ball,true,.22,.22);this.cameras.main.pan(this.ball.x,this.ball.y,0);this.setBtn(this.passBtn,true);this.setBtn(this.catchBtn,false);this.hud()}
-}
-new Phaser.Game({type:Phaser.AUTO,parent:'game',backgroundColor:'#0b1f2a',physics:{default:'arcade',arcade:{debug:false}},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH,width:540,height:960},scene:[MainScene]});
-</script>
-</body>
-</html>
+  <div id="game"></div>
+
+  <!-- Loading screen overlay -->
+  <div id="loading-screen" class="rc" style="display:block;">
+    <div class="sw">
+      <div class="gs lds">
+        <img class="ldt abs" src="UI/Logo_Draft.png" alt="Game Logo" />
+        <img class="ldg abs" src="UI/First_Player.png" alt="Loading" />
+        <div class="ldb pn">
+          <img class="fi" src="UI/Loading_BarBack.png" alt="Loading bar background" />
+          <img class="ldf abs" src="UI/Loading_Bar.png" alt="Loading bar" />
+        </div>
+        <span class="ldtx abs">LOADING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Win screen overlay -->
+  <div id="reward-screen" class="rc">
+    <div class="rw">
+      <div class="rs">
+        <img class="tb abs" src="UI/Logo_Draft.png" alt="Game Logo" />
+        <img class="cc abs" src="UI/Win_Logo.png" alt="Victory" />
+        <div class="rcd pn">
+          <img class="fi" src="UI/Win_ResultBack.png" alt="Reward background" />
+          <img class="rci abs" src="UI/Win_Coin.png" alt="Reward coin" />
+          <span class="rcl abs">REWARD</span>
+          <span class="rml abs">MULTIPLIER</span>
+          <span class="rmv abs" id="reward-mult">x10</span>
+          <span class="rca abs" id="reward-amount">1000</span>
+        </div>
+        <div class="cb pn">
+          <img class="fi" src="UI/Button.png" alt="Get prize button" />
+          <span class="cbt abs">GET PRIZE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lose screen overlay -->
+  <div id="lose-screen" class="rc">
+    <div class="sw">
+      <div class="gs lsc">
+        <img class="lt abs" src="UI/Logo_Draft.png" alt="Game Logo" />
+        <img class="lg abs" src="UI/Loose_Logo.png" alt="Lose" />
+        <div class="lp pn">
+          <img class="fi" src="UI/Loose_ResultBack.png" alt="Lose info background" />
+          <span class="lpt abs">NO REWARD</span>
+          <span class="lps abs">TRY AGAIN NEXT DAY</span>
+          <span class="lml abs">MULTIPLIER</span>
+          <span class="lmv abs" id="lose-mult">x10</span>
+        </div>
+        <div class="lbb pn">
+          <img class="fi" src="UI/Button_Gray.png" alt="Back button" />
+          <span class="lbt abs">BACK</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bridge between Phaser and HTML screens -->
+  <script>
+    function showHtmlReward(mult, amount) {
+      var root = document.getElementById("reward-screen");
+      if (!root) return;
+      root.style.display = "block";
+      var multSpan = document.getElementById("reward-mult");
+      var amtSpan = document.getElementById("reward-amount");
+      if (multSpan) multSpan.textContent = "x" + mult;
+      if (amtSpan) amtSpan.textContent = String(amount);
+    }
+    function hideHtmlReward() {
+      var root = document.getElementById("reward-screen");
+      if (root) root.style.display = "none";
+    }
+    function showHtmlLose(mult) {
+      var root = document.getElementById("lose-screen");
+      if (!root) return;
+      root.style.display = "block";
+      var multSpan = document.getElementById("lose-mult");
+      if (multSpan) multSpan.textContent = "x" + mult;
+    }
+    function hideHtmlLose() {
+      var root = document.getElementById("lose-screen");
+      if (root) root.style.display = "none";
+    }
+    function restartGameFromUi() {
+      try {
+        if (window._GAME && window._GAME.scene && window._GAME.scene.keys && window._GAME.scene.keys["game"]) {
+          var sc = window._GAME.scene.keys["game"];
+          if (sc && sc.restart) sc.restart();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    function startLoading() {
+      var root = document.getElementById("loading-screen");
+      if (!root) return;
+      var fill = root.querySelector(".ldf");
+      if (fill) fill.classList.add("fill-full");
+      setTimeout(function () { root.style.display = "none"; }, 5000);
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+      var cta = document.querySelector("#reward-screen .cb");
+      if (cta) cta.addEventListener("click", function () { hideHtmlReward(); restartGameFromUi(); });
+      var back = document.querySelector("#lose-screen .lbb");
+      if (back) back.addEventListener("click", function () { hideHtmlLose(); restartGameFromUi(); });
+      if (typeof bootGame === "function") bootGame();
+      startLoading();
+    });
+  </script>
+
+  <!-- Phaser game code -->
+  <script>
+    var BASE = "";
+    var PLAYER_H = 300;
+    var STATIC = {
+      Grass: BASE + "Grass.png",
+      Ball: BASE + "Ball.png",
+      UI_Logo: BASE + "UI/Logo_Draft.png",
+      UI_WinBack: BASE + "UI/Win_Back.png",
+      UI_WinLogo: BASE + "UI/Win_Logo.png",
+      UI_ResultBack: BASE + "UI/Win_ResultBack.png",
+      UI_Button: BASE + "UI/Button.png",
+      UI_Coin: BASE + "UI/Win_Coin.png",
+      UI_ProgressTop: BASE + "UI/Start_ProgressTop.png",
+      UI_ProgressStrip: BASE + "UI/Start_Progress_BackLine.png",
+      UI_ProgressBack: BASE + "UI/Start_Progress_Back.png",
+      UI_ProgressFill: BASE + "UI/Start_Progress.png",
+    };
+    var ANIMS = {
+      Hair: {
+        Run: { url: BASE + "Run.png", frameW: 332, frameH: 432, frames: 21, fps: 24, loop: true },
+        Idle: { url: BASE + "Idle.png", frameW: 333.33, frameH: 432, frames: 28, fps: 24, loop: true },
+        Idle_Back: { url: BASE + "Idle_Back.png", frameW: 300, frameH: 400, frames: 1, fps: 24, loop: true },
+        Kick: { url: BASE + "Kick.png", frameW: 377.3333, frameH: 468, frames: 26, fps: 24, loop: false },
+      },
+      Bald: {
+        Run: { url: BASE + "Run_Bald.png", frameW: 332, frameH: 432, frames: 21, fps: 24, loop: true },
+        Idle: { url: BASE + "Idle_Bald.png", frameW: 333.33, frameH: 432, frames: 28, fps: 24, loop: true },
+        Idle_Back: { url: BASE + "Idle_Back_Bald.png", frameW: 300, frameH: 400, frames: 1, fps: 24, loop: true },
+        Kick: { url: BASE + "Kick_Bald.png", frameW: 377.3333, frameH: 468, frames: 26, fps: 24, loop: false },
+      },
+      Ball: {
+        Fly: { url: BASE + "Ball_Anim.png", frameW: 100, frameH: 100, frames: 20, fps: 20, loop: true },
+      },
+    };
+
+    var Assets = {
+      ready: false,
+      load: function (scene, done) {
+        if (this.ready) {
+          if (done) done();
+          return;
+        }
+        var entries = [];
+        Object.keys(ANIMS).forEach(function (skin) {
+          Object.keys(ANIMS[skin]).forEach(function (action) {
+            entries.push({ skin: skin, action: action, conf: ANIMS[skin][action] });
+          });
+        });
+        var remaining = entries.length + Object.keys(STATIC).length;
+        var self = this;
+
+        function maybeDone() {
+          if (remaining === 0) {
+            self.ready = true;
+            if (done) done();
+          }
+        }
+
+        Object.keys(STATIC).forEach(function (name) {
+          var key = name;
+          var url = STATIC[name];
+          var img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function () {
+            try {
+              if (!scene.textures.exists(key)) scene.textures.addImage(key, img);
+            } catch (e) {
+              console.error(e);
+            }
+            remaining--;
+            maybeDone();
+          };
+          img.onerror = function () {
+            console.warn("Failed to load static image", url);
+            remaining--;
+            maybeDone();
+          };
+          img.src = url;
+        });
+
+        entries.forEach(function (ent) {
+          var key = "tx:" + ent.skin + ":" + ent.action;
+          var img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function () {
+            try {
+              var iw = img.naturalWidth || img.width;
+              var ih = img.naturalHeight || img.height;
+              var fw = ent.conf.frameW;
+              var fh = ent.conf.frameH;
+              if (!iw || !ih) {
+                remaining--;
+                maybeDone();
+                return;
+              }
+              var cols = Math.floor(iw / fw);
+              var rows = Math.floor(ih / fh);
+              var want = Math.max(1, ent.conf.frames | 0);
+              if (!scene.textures.exists(key)) {
+                var tex = scene.textures.addImage(key, img);
+                if (cols >= 1 && rows >= 1) {
+                  var added = 0;
+                  for (var r = 0; r < rows && added < want; r++) {
+                    for (var c = 0; c < cols && added < want; c++) {
+                      tex.add("f" + added, 0, c * fw, r * fh, fw, fh);
+                      added++;
+                    }
+                  }
+                  if (added === 0) tex.add("f0", 0, 0, 0, iw, ih);
+                } else {
+                  tex.add("f0", 0, 0, 0, iw, ih);
+                }
+              }
+              var akey = ent.skin === "Bald" ? ent.action + "_Bald" : ent.action;
+              if (!scene.anims.exists(akey)) {
+                var names = scene.textures
+                  .get(key)
+                  .getFrameNames()
+                  .filter(function (n) {
+                    return (n + "").charAt(0) === "f";
+                  });
+                if (names.length === 0) names = ["f0"];
+                names = names.slice(0, want);
+                scene.anims.create({
+                  key: akey,
+                  frames: names.map(function (n) {
+                    return { key: key, frame: n };
+                  }),
+                  frameRate: ent.conf.fps,
+                  repeat: ent.conf.loop ? -1 : 0,
+                });
+              }
+            } catch (e) {
+              console.error(e);
+            }
+            remaining--;
+            maybeDone();
+          };
+          img.onerror = function () {
+            console.warn("Failed to load anim image", ent.conf.url);
+            remaining--;
+            maybeDone();
+          };
+          img.src = ent.conf.url;
+        });
+      },
+      animKey: function (action, skin) {
+        return skin === "Bald" ? action + "_Bald" : action;
+      },
+    };
+
+    var GameScene = new Phaser.Class({
+      Extends: Phaser.Scene,
+      initialize: function GameScene() {
+        Phaser.Scene.call(this, { key: "game" });
+      },
+      init: function () {
+        this.W = 540;
+        this.H = 960;
+        this.PLAYERS_COUNT = 10;
+        this.P_SPACING_MIN = 1200;
+        this.H_OFFSET = 140;
+        this.BALL_R = 20;
+        this.ballHoldOffsetX = -40;
+        this.passIndex = 0;
+        this.missChance = 0.05;
+        this.MS_STEP = 0.07;
+        this.mult = 1;
+        this.inFlight = false;
+        this.gameOver = false;
+        this.flightTween = null;
+        this.players = [];
+        this.positions = [];
+      },
+      preload: function () {},
+      PlayerView: undefined,
+      create: function () {
+        var scene = this;
+        Assets.load(scene, function () {
+          scene.startGame();
+        });
+        if (!this.PlayerView) {
+          var Cls = function (scene, x, y, skin) {
+            this.scene = scene;
+            this.skin = skin || "Hair";
+            var key = "tx:" + this.skin + ":Idle";
+            this.sprite = scene.add.sprite(x, y, key, "f0").setOrigin(0.5, 1);
+            this._applyScale("Idle");
+          };
+          Cls.prototype._frameH = function (action) {
+            var tbl = ANIMS[this.skin] || {};
+            var conf = tbl[action] || null;
+            return conf ? conf.frameH : 300;
+          };
+          Cls.prototype._applyScale = function (action) {
+            var base = ANIMS[this.skin] && ANIMS[this.skin].Run ? ANIMS[this.skin].Run : { frameH: 432 };
+            if (action === "Kick") this.sprite.setScale(PLAYER_H / base.frameH);
+            else {
+              var frameH = this._frameH(action);
+              this.sprite.setScale(PLAYER_H / frameH);
+            }
+          };
+          Cls.prototype._lockFeet = function (apply) {
+            var before = this.sprite.getBottomCenter();
+            apply.call(this);
+            var after = this.sprite.getBottomCenter();
+            this.sprite.y += before.y - after.y;
+          };
+          Cls.prototype.playIdle = function () {
+            var self = this;
+            this._lockFeet(function () {
+              self._applyScale("Idle");
+              self.sprite.play(Assets.animKey("Idle", self.skin));
+            });
+          };
+          Cls.prototype.playIdleBack = function () {
+            var self = this;
+            this._lockFeet(function () {
+              self._applyScale("Idle_Back");
+              self.sprite.play(Assets.animKey("Idle_Back", self.skin));
+            });
+          };
+          Cls.prototype.playRunAmbient = function () {
+            var self = this;
+            this._lockFeet(function () {
+              self._applyScale("Run");
+              self.sprite.play(Assets.animKey("Run", self.skin));
+            });
+          };
+          Cls.prototype.playKick = function (onComplete) {
+            var self = this;
+            var key = Assets.animKey("Kick", this.skin);
+            var sprite = this.sprite;
+            var scn = this.scene;
+            this._lockFeet(function () {
+              self._applyScale("Kick");
+              sprite.play(key);
+            });
+            var kickConf = (ANIMS[this.skin] && ANIMS[this.skin].Kick) || null;
+            var estDur = kickConf ? (kickConf.frames / kickConf.fps) * 1000 : 600;
+            var triggerTime = estDur * 0.15;
+            scn.time.delayedCall(triggerTime, function () {
+              if (onComplete) onComplete();
+            });
+          };
+          this.PlayerView = Cls;
+        }
+      },
+      startGame: function () {
+        var top = -20000;
+        var bottom = this.H + 600;
+        var worldH = bottom - top;
+        this.cameras.main.setBounds(0, top, this.W, worldH);
+        this.physics.world.setBounds(0, top, this.W, worldH);
+
+        var texF = this.textures.exists("Grass") ? this.textures.get("Grass").getSourceImage() : null;
+        if (texF) {
+          var iwF = texF.width || texF.naturalWidth || 1;
+          var scaleF = this.W / iwF;
+          this.field = this.add.tileSprite(this.W / 2, (top + bottom) / 2, this.W, worldH, "Grass").setDepth(-10);
+          this.field.setTileScale(scaleF, scaleF);
+        } else {
+          this.add.rectangle(this.W / 2, (top + bottom) / 2, this.W, worldH, 0x0b5a2a).setDepth(-10);
+        }
+
+        var btnH = 64;
+        var btnCY = this.H - 70;
+        var bottomMargin = this.H - (btnCY + btnH / 2);
+        var firstCenterY = btnCY - btnH / 2 - bottomMargin - PLAYER_H / 2;
+        var cx = this.W / 2;
+        var marginX = 40;
+        var y = firstCenterY;
+        var i;
+        this.positions = [];
+        this.players = [];
+        for (i = 0; i < this.PLAYERS_COUNT; i++) {
+          var x = i === 0
+            ? cx
+            : Phaser.Math.Clamp(cx + Phaser.Math.Between(-this.H_OFFSET, this.H_OFFSET), marginX, this.W - marginX);
+          if (i > 0) y -= this.P_SPACING_MIN + Phaser.Math.Between(0, this.P_SPACING_MIN);
+          this.positions.push({ x: x, y: y });
+        }
+        for (i = 0; i < this.PLAYERS_COUNT; i++) {
+          var pos = this.positions[i];
+          var skin = i % 2 === 0 ? "Hair" : "Bald";
+          var view = new this.PlayerView(this, pos.x, pos.y, skin);
+          view.playRunAmbient();
+          this.players.push({ node: view.sprite, view: view });
+        }
+        if (this.players[0] && this.players[0].view) this.players[0].view.playIdle();
+
+        var first = this.players[0].node;
+        var legStart = this.legPosOf(first);
+        this.ball = this.add
+          .sprite(legStart.x + this.ballHoldOffsetX, legStart.y, "tx:Ball:Fly", "f0")
+          .setOrigin(0.5)
+          .setDepth(100);
+        this.ballBaseScale = 0.5;
+        this.ball.setScale(this.ballBaseScale);
+        this.ballBaseDepth = this.ball.depth;
+        this.cameras.main.startFollow(this.ball, true, 0.22, 0.22);
+        if (this.ball.anims) {
+          this.ball.anims.stop();
+          this.ball.setFrame("f0");
+        }
+
+        var last = this.players[this.PLAYERS_COUNT - 1].node;
+        this.goal = this.add
+          .rectangle(this.W / 2, last.y - 260, 110, 26, 0x2fd39f)
+          .setStrokeStyle(4, 0x1aa67a)
+          .setDepth(9);
+        this.add
+          .text(this.goal.x, this.goal.y - 36, "GOAL", {
+            fontFamily: "Montserrat",
+            fontStyle: "bold",
+            fontSize: 18,
+            color: "#7fffd4",
+          })
+          .setOrigin(0.5)
+          .setDepth(9);
+
+        var uiScale = 0.5;
+        var uiX = 107 * uiScale;
+        this.barStrip = this.add.image(uiX, this.H / 2, "UI_ProgressStrip").setScrollFactor(0).setDepth(50);
+        this.barStrip.setScale(uiScale);
+        this.barBG = this.add.image(uiX, this.H / 2, "UI_ProgressBack").setScrollFactor(0).setDepth(51);
+        this.barBG.setScale(uiScale);
+        this.barFG = this.add.image(uiX, this.H / 2, "UI_ProgressFill").setScrollFactor(0).setDepth(52);
+        this.barFG.setOrigin(0.5, 1);
+        this.barFG.setScale(uiScale);
+        this.barFG.y = this.barBG.y + this.barBG.displayHeight / 2;
+        this.barFGBaseScaleX = this.barFG.scaleX;
+        this.barFGBaseScaleY = this.barFG.scaleY;
+        this.barFG.setScale(this.barFGBaseScaleX, 0);
+
+        this.multBadge = this.add
+          .image(uiX, (164 + 90 / 2) * uiScale, "UI_ProgressTop")
+          .setScrollFactor(0)
+          .setDepth(53);
+        this.multBadge.setScale(uiScale);
+        this.multText = this.add
+          .text(uiX, (186 + 40 / 2) * uiScale, "x1", {
+            fontFamily: "Montserrat",
+            fontSize: 20,
+            color: "#ffffff",
+          })
+          .setOrigin(0.5)
+          .setScrollFactor(0)
+          .setDepth(54);
+        this.missText = this.add
+          .text(56, 52, "Miss: 5%", { fontFamily: "monospace", fontSize: 16, color: "#ffb3b3" })
+          .setScrollFactor(0)
+          .setDepth(51);
+        this.missText.setVisible(false);
+
+        var makeBtn = (function (scene) {
+          return function (label, x, y, onTap) {
+            var img = scene.add.image(x, y, "UI_Button").setDepth(2000).setScrollFactor(0);
+            img.setScale(0.5);
+            var tx = scene.add
+              .text(x, y, label, { fontFamily: "Montserrat", fontSize: 30, color: "#d02831" })
+              .setOrigin(0.5)
+              .setDepth(2001)
+              .setScrollFactor(0);
+            img.setInteractive({ useHandCursor: true }).on("pointerdown", function () {
+              onTap();
+            });
+            return {
+              show: function (v) {
+                img.setVisible(v);
+                tx.setVisible(v);
+                if (v) img.setInteractive({ useHandCursor: true });
+                else img.disableInteractive();
+              },
+              setLabel: function (t) {
+                tx.setText(t);
+              },
+              setPos: function (nx, ny) {
+                img.setPosition(nx, ny);
+                tx.setPosition(nx, ny);
+              },
+              destroy: function () {
+                img.destroy();
+                tx.destroy();
+              },
+            };
+          };
+        })(this);
+
+        var btnY = (1506 + 172 / 2) * 0.5;
+        this.passBtn = makeBtn(
+          "START",
+          this.W / 2,
+          btnY,
+          (function (scene) {
+            return function () {
+              if (scene.inFlight || scene.gameOver) return;
+              scene.setPassCatchState(false, true);
+              scene.pass();
+            };
+          })(this)
+        );
+        this.catchBtn = makeBtn(
+          "CATCH!",
+          this.W / 2,
+          btnY,
+          (function (scene) {
+            return function () {
+              scene.catch();
+            };
+          })(this)
+        );
+
+        this.setPassCatchState(true, false);
+        this.updateHUD();
+      },
+      setPassCatchState: function (showPass, showCatch) {
+        if (this.passBtn) this.passBtn.show(showPass);
+        if (this.catchBtn) this.catchBtn.show(showCatch);
+      },
+      progressForMult: function (m) {
+        var mm = Math.min(m, 10);
+        return Phaser.Math.Clamp((mm - 1) / (10 - 1), 0, 1);
+      },
+      updateHUD: function () {
+        var displayedMult = Math.min(this.mult, 10);
+        var pr = this.progressForMult(displayedMult);
+        if (this.barFG && this.barFGBaseScaleY)
+          this.barFG.setScale(this.barFGBaseScaleX, this.barFGBaseScaleY * pr);
+        if (this.multText) this.multText.setText("x" + displayedMult.toFixed(0));
+        if (this.missText)
+          this.missText.setText("Miss: " + (this.missChance * 100).toFixed(0) + "%");
+      },
+      legPosOf: function (node) {
+        return { x: node.x, y: node.y - PLAYER_H * 0.05 - 60 };
+      },
+      popMultiplierAt: function (target, mult) {
+        var txt = this.add
+          .text(target.x, target.y - PLAYER_H - 10, "x" + mult, {
+            fontFamily: "Montserrat",
+            fontStyle: "bold",
+            fontSize: 28,
+            color: "#ffffff",
+          })
+          .setOrigin(0.5)
+          .setDepth(500);
+        txt.setScale(0.4, 0.4);
+        txt.alpha = 0.0;
+        var scn = this;
+        this.tweens.add({
+          targets: txt,
+          alpha: 1,
+          scaleX: 2.4,
+          scaleY: 2.4,
+          duration: 210,
+          ease: "Back.Out",
+          onComplete: function () {
+            scn.tweens.add({
+              targets: txt,
+              y: txt.y - 24,
+              alpha: 0,
+              duration: 570,
+              onComplete: function () {
+                txt.destroy();
+              },
+            });
+          },
+        });
+      },
+      pass: function () {
+        var self = this;
+        if (this.passIndex >= this.PLAYERS_COUNT - 1) {
+          var lastView = this.players[this.passIndex] && this.players[this.passIndex].view;
+          if (this.ball && lastView && lastView.sprite) {
+            this.ball.setDepth(lastView.sprite.depth - 1);
+            var lastNode = this.players[this.passIndex] && this.players[this.passIndex].node;
+            if (lastNode) {
+              var lastLeg = this.legPosOf(lastNode);
+              this.ball.setPosition(lastLeg.x, lastLeg.y);
+            }
+          }
+          if (lastView)
+            lastView.playKick(function () {
+              self.passToGoal();
+            });
+          return;
+        }
+        var passerView = this.players[this.passIndex] && this.players[this.passIndex].view;
+        if (this.ball && passerView && passerView.sprite) {
+          this.ball.setDepth(passerView.sprite.depth - 1);
+          var passerNode = this.players[this.passIndex] && this.players[this.passIndex].node;
+          if (passerNode) {
+            var legP = this.legPosOf(passerNode);
+            this.ball.setPosition(legP.x, legP.y);
+          }
+        }
+        if (passerView)
+          passerView.playKick(function () {
+            self.toTarget(self.passIndex + 1);
+          });
+      },
+      toTarget: function (i) {
+        var self = this;
+        var target = this.players[i].node;
+        var leg = this.legPosOf(target);
+        this.inFlight = true;
+        var dur = 2000 + Phaser.Math.Between(0, 1000);
+        var miss = Math.random() < this.missChance;
+        if (miss) {
+          var mx = Phaser.Math.Linear(this.ball.x, leg.x, 0.6) + Phaser.Math.Between(-80, 80);
+          var my = leg.y - 120;
+          this.flyArc(mx, my, dur, function () {
+            self.fail();
+          });
+          this.cameras.main.shake(300, 0.0045);
+        } else {
+          this.flyArc(leg.x + this.ballHoldOffsetX, leg.y,
+            dur,
+            function () {
+              self.passIndex = i;
+              if (self.players[i] && self.players[i].view)
+                self.players[i].view.playIdle();
+              self.mult += 1;
+              self.missChance += self.MS_STEP;
+              self.inFlight = false;
+              
+              self.cameras.main.shake(300, 0.0045);
+              self.updateHUD();
+              self.popMultiplierAt(target, self.mult);
+              self.setPassCatchState(false, true);
+              if (i < self.PLAYERS_COUNT - 1) {
+                self.time.delayedCall(500, function () {
+                  if (!self.inFlight && !self.gameOver) self.pass();
+                });
+              } else {
+                self.time.delayedCall(500, function () {
+                  if (!self.inFlight && !self.gameOver) self.passToGoal();
+                });
+              }
+            },
+            target
+          );
+        }
+      },
+      passToGoal: function () {
+        var self = this;
+        var dur = 2000 + Phaser.Math.Between(0, 1000);
+        var miss = Math.random() < this.missChance;
+        if (miss) {
+          var mx = this.goal.x + Phaser.Math.Between(-120, 120);
+          var my = this.goal.y - 140;
+          this.flyArc(mx, my, dur, function () {
+            self.fail();
+          });
+          this.cameras.main.shake(300, 0.0045);
+        } else {
+          this.flyArc(this.goal.x, this.goal.y + 6, dur, function () {
+            if (self.players[self.passIndex] && self.players[self.passIndex].view)
+              self.players[self.passIndex].view.playIdle();
+            self.mult += 1;
+            self.missChance += self.MS_STEP;
+            self.inFlight = false;
+            self.updateHUD();
+            self.setPassCatchState(false, true);
+          });
+        }
+      },
+      flyArc: function (tx, ty, d, cb, nextNode) {
+        var s = new Phaser.Math.Vector2(this.ball.x, this.ball.y);
+        var e = new Phaser.Math.Vector2(tx, ty);
+        var m = s.clone().add(e).scale(0.5);
+        var tr = e.distance(s);
+        var arc = Math.max(220, Phaser.Math.Clamp(tr * 0.35, 180, 380));
+        var c = new Phaser.Math.Vector2(m.x, m.y - arc);
+        var curve = new Phaser.Curves.QuadraticBezier(s, c, e);
+        var self = this;
+        var flyKey = Assets.animKey("Fly", "Ball");
+        if (self.ball && self.ball.anims && self.anims && self.anims.exists(flyKey)) {
+          self.ball.play(flyKey);
+        }
+        var depthSwitched = false;
+        this.flightTween = this.tweens.addCounter({
+          from: 0,
+          to: 1,
+          duration: d,
+          ease: "Sine.easeInOut",
+          onUpdate: function (tw) {
+            var t = tw.getValue();
+            var p = curve.getPoint(t);
+            self.ball.setPosition(p.x, p.y);
+            var sc = 1 + 0.5 * Math.sin(Math.PI * t);
+            self.ball.setScale(self.ballBaseScale * sc, self.ballBaseScale * sc);
+            if (!depthSwitched && t >= 0.5 && nextNode) {
+              depthSwitched = true;
+              self.ball.setDepth(nextNode.depth + 1);
+            }
+          },
+          onComplete: function () {
+            self.flightTween = null;
+            if (self.ball && self.ball.anims) {
+              self.ball.anims.stop();
+              self.ball.setFrame("f0");
+              self.ball.setScale(self.ballBaseScale, self.ballBaseScale);
+            }
+            if (cb) cb();
+          },
+        });
+      },
+      catch: function () {
+        if (this.gameOver) return;
+        if (this.flightTween) {
+          this.flightTween.stop();
+          this.flightTween = null;
+        }
+        this.inFlight = false;
+        if (this.ball && this.ball.anims) {
+          this.ball.anims.stop();
+          this.ball.setFrame("f0");
+          this.ball.setScale(this.ballBaseScale, this.ballBaseScale);
+        }
+        var r = Math.round(100 * this.mult);
+        this.gameOver = true;
+        if (typeof showHtmlReward === "function")
+          showHtmlReward(this.mult.toFixed(0), r);
+      },
+      fail: function () {
+        this.inFlight = false;
+        if (this.flightTween) {
+          this.flightTween.stop();
+          this.flightTween = null;
+        }
+        if (this.ball && this.ball.anims) {
+          this.ball.anims.stop();
+          this.ball.setFrame("f0");
+        }
+        this.gameOver = true;
+        this.tweens.add({
+          targets: this.ball,
+          scaleX: 1.5,
+          scaleY: 1.5,
+          yoyo: true,
+          repeat: 1,
+          duration: 160,
+        });
+        if (typeof showHtmlLose === "function") showHtmlLose(this.mult.toFixed(0));
+      },
+      restart: function () {
+        if (typeof hideHtmlReward === "function") hideHtmlReward();
+        if (typeof hideHtmlLose === "function") hideHtmlLose();
+        this.gameOver = false;
+        this.inFlight = false;
+        if (this.flightTween) {
+          this.flightTween.stop();
+          this.flightTween = null;
+        }
+        if (this.ball && this.ball.anims) {
+          this.ball.anims.stop();
+          this.ball.setFrame("f0");
+          this.ball.setScale(this.ballBaseScale, this.ballBaseScale);
+        }
+        this.passIndex = 0;
+        this.missChance = 0.05;
+        this.mult = 1;
+        for (var i = 0; i < this.players.length; i++) {
+          var v = this.players[i] && this.players[i].view;
+          if (!v) continue;
+          if (i === 0) v.playIdle();
+          else v.playRunAmbient();
+        }
+        var f = this.players[0].node;
+        var l = this.legPosOf(f);
+        this.ball.setPosition(l.x + this.ballHoldOffsetX, l.y);
+        this.ball.setScale(this.ballBaseScale, this.ballBaseScale);
+        if (typeof this.ballBaseDepth === "number") this.ball.setDepth(this.ballBaseDepth);
+        this.cameras.main.startFollow(this.ball, true, 0.22, 0.22);
+        this.cameras.main.pan(this.ball.x, this.ball.y, 0);
+        this.setPassCatchState(true, false);
+        this.updateHUD();
+      },
+    });
+
+    function bootGame() {
+      try {
+        if (window._GAME && window._GAME.destroy) window._GAME.destroy(true);
+      } catch (err) {
+        console.error(err);
+      }
+      var mount = document.getElementById("game");
+      if (mount) mount.innerHTML = "";
+      window._GAME = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: "game",
+        backgroundColor: "#0b1f2a",
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+          width: 540,
+          height: 960,
+        },
+        physics: { default: "arcade", arcade: { debug: false } },
+        scene: [GameScene],
+      });
+    }
+    // Manual tests: 1) START -> auto passes & ball flight; 2) CATCH during pass shows reward and restart works; 3) Miss shows lose screen; 4) Restart from win/lose resets positions, mult, missChance; 5) Ball animates during flight (Ball_Anim) and depth switches behind kicker then in front of receiver; 6) Ball sits 30px left when player stands, snaps to leg on kick.
+  </script>
