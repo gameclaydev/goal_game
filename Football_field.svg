@@ -1,18 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="740" height="1110" viewBox="0 0 74 111">
-<rect id="" width="74" height="111" fill="#00a000"/>
-<g fill="none" stroke="#fff" stroke-width="0.5" transform="translate(3 3)">
-	<path id="Border" d="M 0 0 h 68 v 105 h -68 Z"/>
-	<path id="Centre line" d="M 0 52.5 h 68"/>
-	<circle id="Centre circle" r="9.15" cx="34" cy="52.5"/>
-	<circle id="Centre mark" r="0.75" cx="34" cy="52.5" fill="#fff" stroke="none"/>
-	<g id="Penalty area">
-		<path id="Penalty area line" d="M 13.84 0 v 16.5 h 40.32 v -16.5"/>
-		<path id="Goal area line" d="M 24.84 0 v 5.5 h 18.32 v -5.5"/>
-		<circle id="Penalty mark" r="0.75" cx="34" cy="10.94" fill="#fff" stroke="none"/>
-		<path id="Penalty arc" d="M 26.733027 16.5 a 9.15 9.15 0 0 0 14.533946 0"/>
-	</g>
-	<use xlink:href="#Penalty area" transform="rotate(180,34,52.5)" />
-	<path id="Corner arcs" d="M 0 2 a 2 2 0 0 0 2 -2M 66 0 a 2 2 0 0 0 2 2M 68 103 a 2 2 0 0 0 -2 2M 2 105 a 2 2 0 0 0 -2 -2"/>
-</g>
+<svg width="740" height="1110" viewBox="0 0 740 1110" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M30 30H710V1080H30V30Z" stroke="white"/>
+<path d="M30 555H710" stroke="white"/>
+<path d="M370 646.5C420.534 646.5 461.5 605.534 461.5 555C461.5 504.466 420.534 463.5 370 463.5C319.466 463.5 278.5 504.466 278.5 555C278.5 605.534 319.466 646.5 370 646.5Z" stroke="white"/>
+<path d="M168.4 30V195H571.6V30" stroke="white"/>
+<path d="M278.4 30V85H461.6V30" stroke="white"/>
+<path d="M297.331 195C305.873 206.164 316.871 215.21 329.474 221.436C342.077 227.661 355.944 230.9 370.001 230.9C384.057 230.9 397.925 227.661 410.528 221.436C423.13 215.21 434.129 206.164 442.671 195" stroke="white"/>
+<path d="M571.6 1080V915H168.4V1080" stroke="white"/>
+<path d="M461.6 1080V1025H278.4V1080" stroke="white"/>
+<path d="M442.669 915C434.127 903.836 423.129 894.79 410.526 888.564C397.923 882.339 384.056 879.1 369.999 879.1C355.943 879.1 342.075 882.339 329.472 888.564C316.87 894.79 305.871 903.836 297.329 915" stroke="white"/>
+<path d="M30 50C35.3043 50 40.3914 47.8929 44.1421 44.1421C47.8929 40.3914 50 35.3043 50 30M690 30C690 35.3043 692.107 40.3914 695.858 44.1421C699.609 47.8929 704.696 50 710 50M710 1060C704.696 1060 699.609 1062.11 695.858 1065.86C692.107 1069.61 690 1074.7 690 1080M50 1080C50 1074.7 47.8929 1069.61 44.1421 1065.86C40.3914 1062.11 35.3043 1060 30 1060" stroke="white"/>
 </svg>
